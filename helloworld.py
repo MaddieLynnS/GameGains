@@ -11,6 +11,19 @@ arcade.resources.load_kenney_fonts()
 
 #Here is a player class that simply must come first loloo
 class Player(arcade.Sprite):
+    def __init__(self, path_or_texture = None, scale = 1):
+        super().__init__(path_or_texture, scale)
+    # def __init__(self, scale):
+    #     super().__init__(scale)
+
+        self.walk_textures = []
+
+        texture = arcade.load_texture("./sprites/run_right.png")
+        texture_flipped = arcade.load_texture("./sprites/run_left.png")
+
+        self.walk_textures.append(texture)
+        self.walk_textures.append(texture_flipped)
+
     def update(self, delta_time: float = 1/60):
         self.center_x += self.change_x
         self.center_y += self.change_y
@@ -59,7 +72,7 @@ class GameView(arcade.View):
 
         # Setting "player" sprite (use Player subclass so its update can run)
         self.player_sprite = Player(
-            "./sprites/image.png",
+            "./sprites/run_right.png",
             scale=.45
         )
 
@@ -73,6 +86,8 @@ class GameView(arcade.View):
         self.right_pressed = False
         self.up_pressed = False
         self.down_pressed = False
+
+        self.score = 0
 
         #setting up soot sprite sprites :)
         for i in range(20):
@@ -103,6 +118,7 @@ class GameView(arcade.View):
         self.clear()
 
         self.main_text.draw()
+        arcade.draw_text(f"Score: {self.score}", 10, 20, arcade.color.WHITE, font_size=20, font_name="Kenney Pixel Square")
         #can also do arcade.draw_text("Instructions Screen", self.window.width / 2, self.window.height / 2,
         #                 arcade.color.WHITE, font_size=50, anchor_x="center"))
 
@@ -115,7 +131,22 @@ class GameView(arcade.View):
 
     def on_update(self, delta_time):
         self.player_list.update(delta_time)
-        
+
+        # Call update on all sprites (The sprites don't do much in this
+        # example though.)
+        self.sprites_list.update()
+
+        # Generate a list of all sprites that collided with the player.
+        hit_list = arcade.check_for_collision_with_list(self.player_sprite, self.sprites_list)
+
+        # Loop through each colliding sprite, remove it, and add to the score.
+        for sprite in hit_list:
+            sprite.remove_from_sprite_lists()
+            self.score += 1
+
+        if(self.score == 20):
+            view = GameEndView()
+            self.window.show_view(view)
 
     def update_player_speed(self):
         # Calculate speed based on the keys pressed
@@ -127,9 +158,15 @@ class GameView(arcade.View):
         elif self.down_pressed and not self.up_pressed:
             self.player_sprite.change_y = -MOVEMENT_SPEED
         if self.left_pressed and not self.right_pressed:
+            self.player_sprite.texture = self.player_sprite.walk_textures[1]
             self.player_sprite.change_x = -MOVEMENT_SPEED
         elif self.right_pressed and not self.left_pressed:
+            self.player_sprite.texture = self.player_sprite.walk_textures[0]
             self.player_sprite.change_x = MOVEMENT_SPEED
+
+    # Change direction sprite is facing based on movement
+    def update_player_sprite(self):
+        pass
 
 
     def on_key_press(self, key, modifiers):
@@ -172,11 +209,11 @@ class GameEndView(arcade.View):
         super().__init__()
 
         self.end_text = arcade.Text(
-            "GAME OVER",
+            "YOU WIN!!",
             WINDOW_WIDTH/2,
             WINDOW_HEIGHT/2,
             arcade.color.WHITE,
-            200,
+            100,
             font_name="Kenney Pixel Square",
             anchor_x="center",
             anchor_y="center"
@@ -184,7 +221,7 @@ class GameEndView(arcade.View):
 
     #do this instead of what? instead of setup?
     def on_show_view(self):
-         self.background_color = arcade.color.BLACK
+        self.background_color = arcade.color.YELLOW_ORANGE
     
     def setup(self):
         pass
