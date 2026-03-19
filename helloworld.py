@@ -5,7 +5,7 @@ WINDOW_WIDTH = 1000
 WINDOW_HEIGHT = 700
 WINDOW_TITLE = "Maddie Hello World"
 
-MOVEMENT_SPEED = 5
+MOVEMENT_SPEED = 7
 
 arcade.resources.load_kenney_fonts()
 
@@ -109,6 +109,12 @@ class GameView(arcade.View):
 
             self.sprites_list.append(soot_sprite)
 
+        #Music and sound
+        self.music = arcade.Sound("./sounds/Running-full.mp3")
+        self.music.play(volume=1)
+
+        self.sound = arcade.Sound(":resources:/sounds/coin1.wav")
+
 
     def setup(self):
         pass
@@ -119,8 +125,6 @@ class GameView(arcade.View):
 
         self.main_text.draw()
         arcade.draw_text(f"Score: {self.score}", 10, 20, arcade.color.WHITE, font_size=20, font_name="Kenney Pixel Square")
-        #can also do arcade.draw_text("Instructions Screen", self.window.width / 2, self.window.height / 2,
-        #                 arcade.color.WHITE, font_size=50, anchor_x="center"))
 
         for sprite in self.player_list:
             arcade.draw_sprite(sprite)
@@ -132,8 +136,7 @@ class GameView(arcade.View):
     def on_update(self, delta_time):
         self.player_list.update(delta_time)
 
-        # Call update on all sprites (The sprites don't do much in this
-        # example though.)
+        # Call update on all sprites
         self.sprites_list.update()
 
         # Generate a list of all sprites that collided with the player.
@@ -141,6 +144,7 @@ class GameView(arcade.View):
 
         # Loop through each colliding sprite, remove it, and add to the score.
         for sprite in hit_list:
+            self.sound.play(volume=.4)
             sprite.remove_from_sprite_lists()
             self.score += 1
 
@@ -163,10 +167,6 @@ class GameView(arcade.View):
         elif self.right_pressed and not self.left_pressed:
             self.player_sprite.texture = self.player_sprite.walk_textures[0]
             self.player_sprite.change_x = MOVEMENT_SPEED
-
-    # Change direction sprite is facing based on movement
-    def update_player_sprite(self):
-        pass
 
 
     def on_key_press(self, key, modifiers):
@@ -196,13 +196,6 @@ class GameView(arcade.View):
         elif key == arcade.key.RIGHT:
             self.right_pressed = False
             self.update_player_speed()
-
-
-    #this is apparently the place that checks whether to end the game and consequently update the view
-    # def on_update(self):
-    #     view = GameEndView()
-    #     self.window.show_view(view)
-
 
 class GameEndView(arcade.View):
     def __init__(self):
