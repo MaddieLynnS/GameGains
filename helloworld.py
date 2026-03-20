@@ -5,7 +5,7 @@ WINDOW_WIDTH = 1000
 WINDOW_HEIGHT = 700
 WINDOW_TITLE = "Maddie Hello World"
 
-MOVEMENT_SPEED = 7
+MOVEMENT_SPEED = 5
 
 arcade.resources.load_kenney_fonts()
 
@@ -40,6 +40,53 @@ class Player(arcade.Sprite):
             self.top = WINDOW_HEIGHT - 5
 
 
+#Moving Sprites Class- simple sprite that picks a random direction and moves in that direction
+#If they pick a direction that leads them out of bounds, they will get stuck on the wall
+class MovingSprite(arcade.Sprite):
+    def __init__(self, path_or_texture = None, scale = 1):
+        super().__init__(path_or_texture, scale)
+        self.move_timer = 0
+        self.move_duration = 1
+        self.change_x = 0
+        self.change_y = 0
+        self.direction = random.randint(1,4)
+
+    def custom_update(self, delta_time):
+        self.move_timer += delta_time
+        if self.move_timer >= self.move_duration:
+            #pick new direction
+            self.direction = random.randint(1,4)
+            #reset timer
+            self.move_timer = 0
+        self.move_in_direction()
+
+    def move_in_direction(self):
+        if self.direction == 1:
+            self.change_x = MOVEMENT_SPEED
+            self.change_y = 0
+        elif self.direction == 2:
+            self.change_x = -MOVEMENT_SPEED
+            self.change_y = 0
+        elif self.direction == 3:
+            self.change_y = MOVEMENT_SPEED
+            self.change_x = 0
+        else:
+            self.change_y = -MOVEMENT_SPEED
+            self.change_x = 0
+
+        #Check for out of bounds (and I let them hide just out of bounds mwahaha)
+        if self.left < -50:
+            self.left = -50
+        elif self.right > WINDOW_WIDTH + 50:
+            self.right = WINDOW_WIDTH + 50
+
+        if self.bottom < -70:
+            self.bottom = -70
+        elif self.top > WINDOW_HEIGHT + 70:
+            self.top = WINDOW_HEIGHT + 70
+
+
+
 # arcade.open_window(WINDOW_WIDTH, WINDOW_HEIGHT, WINDOW_TITLE, resizable=True)
 # arcade.Window.background_color = arcade.color.AMARANTH_PURPLE
 
@@ -52,6 +99,8 @@ class Player(arcade.Sprite):
 # Next up, we learn how to write a GameView
 class GameView(arcade.View):
     
+    ### INIT
+
     def __init__(self):
         super().__init__()
 
@@ -66,6 +115,12 @@ class GameView(arcade.View):
             anchor_x="center",
             anchor_y="center")
         
+        #Music and sound
+        self.music = arcade.Sound("./sounds/Running-full.mp3",streaming=False)
+        self.music.play(volume=1, loop=True)
+
+        self.sound = arcade.Sound(":resources:/sounds/coin1.wav")
+
         # Variables that will hold sprite lists
         self.player_list = arcade.SpriteList()
         self.sprites_list = arcade.SpriteList()
@@ -88,33 +143,49 @@ class GameView(arcade.View):
         self.down_pressed = False
 
         self.score = 0
+        self.level = 0
 
         #setting up soot sprite sprites :)
         for i in range(20):
-            soot_sprite = arcade.Sprite(
+            #CHANGE BACK TO ARCADE.SPRITE WHEN DONE WITH TESTING
+            soot_sprite = MovingSprite(
+                "./sprites/soot-sprite.png",
+                scale=.09
+            )
+            self.place_sprite(soot_sprite, self.player_sprite)
+            self.sprites_list.append(soot_sprite)
+
+    ### FUNCTION TO ASSIST WITH PLACING SPRITES
+
+    def place_sprite(self,sprite, player):
+        retry = True
+
+        #picks random place on the screen to place each sprite
+        #if random stuff chosen makes it collide with my player, redraw
+        while(retry):
+            sprite.center_x = random.randrange(20, WINDOW_WIDTH - 20)
+            sprite.center_y = random.randrange(20, WINDOW_HEIGHT - 20)
+            if not arcade.check_for_collision(player, sprite):
+                retry = False
+
+
+    ### DIFFERENT LEVEL FUNCTIONS
+
+    # Level 1 is nice-ish, so the sprites just move up/down or side/side
+    def level_1(self):
+        self.sprites_list.clear()
+
+        for i in 20:
+            soot_sprite = MovingSprite(
                 "./sprites/soot-sprite.png",
                 scale=.09
             )
 
-            retry = True
-
-            #picks random place on the screen to place each sprite
-            #if random stuff chosen makes it collide with my player, redraw
-            while(retry):
-                soot_sprite.center_x = random.randrange(20, WINDOW_WIDTH - 20)
-                soot_sprite.center_y = random.randrange(20, WINDOW_HEIGHT - 20)
-                if not arcade.check_for_collision(self.player_sprite, soot_sprite):
-                    retry = False
-            
-
+            self.place_sprite(soot_sprite, self.player_sprite)
             self.sprites_list.append(soot_sprite)
 
-        #Music and sound
-        self.music = arcade.Sound("./sounds/Running-full.mp3")
-        self.music.play(volume=1)
 
-        self.sound = arcade.Sound(":resources:/sounds/coin1.wav")
-
+    #### OTHER FUNCTIONS
 
     def setup(self):
         pass
@@ -137,7 +208,9 @@ class GameView(arcade.View):
         self.player_list.update(delta_time)
 
         # Call update on all sprites
-        self.sprites_list.update()
+        for sprite in self.sprites_list:
+            sprite.custom_update(delta_time)
+        self.sprites_list.update(delta_time)
 
         # Generate a list of all sprites that collided with the player.
         hit_list = arcade.check_for_collision_with_list(self.player_sprite, self.sprites_list)
