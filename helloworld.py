@@ -1,11 +1,13 @@
 import arcade
 import random
+import math
 
 WINDOW_WIDTH = 1000
 WINDOW_HEIGHT = 700
 WINDOW_TITLE = "Maddie Hello World"
 
 MOVEMENT_SPEED = 5
+SPRITES_MOVE_SPEED = 5
 
 arcade.resources.load_kenney_fonts()
 
@@ -62,16 +64,16 @@ class MovingSprite(arcade.Sprite):
 
     def move_in_direction(self):
         if self.direction == 1:
-            self.change_x = MOVEMENT_SPEED
+            self.change_x = SPRITES_MOVE_SPEED
             self.change_y = 0
         elif self.direction == 2:
-            self.change_x = -MOVEMENT_SPEED
+            self.change_x = -SPRITES_MOVE_SPEED
             self.change_y = 0
         elif self.direction == 3:
-            self.change_y = MOVEMENT_SPEED
+            self.change_y = SPRITES_MOVE_SPEED
             self.change_x = 0
         else:
-            self.change_y = -MOVEMENT_SPEED
+            self.change_y = -SPRITES_MOVE_SPEED
             self.change_x = 0
 
         #Check for out of bounds (and I let them hide just out of bounds mwahaha)
@@ -84,6 +86,40 @@ class MovingSprite(arcade.Sprite):
             self.bottom = -70
         elif self.top > WINDOW_HEIGHT + 70:
             self.top = WINDOW_HEIGHT + 70
+
+
+class SpeedySprite(arcade.Sprite):
+    def __init__(self, path_or_texture = None, scale = 1):
+        super().__init__(path_or_texture, scale)
+        self.speed = 10
+        self.move_timer = 0
+        self.move_duration = 1
+        self.change_x = random.uniform(-self.speed, self.speed)
+        self.change_y = random.uniform(-self.speed, self.speed)
+
+    def custom_update(self, delta_time):
+        self.move_timer += delta_time
+        if self.move_timer >= self.move_duration:
+            #reset timer
+            self.move_timer = 0
+            self.pick_new_velocity()
+
+        #Check for out of bounds (and I let them hide just out of bounds mwahaha)
+        if self.left < -50:
+            self.left = -50
+        elif self.right > WINDOW_WIDTH + 50:
+            self.right = WINDOW_WIDTH + 50
+
+        if self.bottom < -70:
+            self.bottom = -70
+        elif self.top > WINDOW_HEIGHT + 70:
+            self.top = WINDOW_HEIGHT + 70
+
+    def pick_new_velocity(self):
+ 
+        angle = random.uniform(0, 2 * math.pi)
+        self.change_x = math.cos(angle) * self.speed
+        self.change_y = math.sin(angle) * self.speed
 
 
 
@@ -121,6 +157,10 @@ class GameView(arcade.View):
 
         self.sound = arcade.Sound(":resources:/sounds/coin1.wav")
 
+        self.pause_timer = 0
+        self.pause_duration = 1
+        self.is_paused = False
+
         # Variables that will hold sprite lists
         self.player_list = arcade.SpriteList()
         self.sprites_list = arcade.SpriteList()
@@ -148,7 +188,7 @@ class GameView(arcade.View):
         #setting up soot sprite sprites :)
         for i in range(20):
             #CHANGE BACK TO ARCADE.SPRITE WHEN DONE WITH TESTING
-            soot_sprite = MovingSprite(
+            soot_sprite = arcade.Sprite(
                 "./sprites/soot-sprite.png",
                 scale=.09
             )
@@ -175,7 +215,7 @@ class GameView(arcade.View):
     def level_1(self):
         self.sprites_list.clear()
 
-        for i in 20:
+        for i in range(20):
             soot_sprite = MovingSprite(
                 "./sprites/soot-sprite.png",
                 scale=.09
@@ -183,6 +223,29 @@ class GameView(arcade.View):
 
             self.place_sprite(soot_sprite, self.player_sprite)
             self.sprites_list.append(soot_sprite)
+
+    # Level 2 is meaner, so the sprites are smaller and move faster and in more complex directions
+    def level_2(self):
+        self.sprites_list.clear()
+
+        for i in range(20):
+            soot_sprite = SpeedySprite(
+                "./sprites/soot-sprite.png",
+                scale=.07
+            )
+
+            self.place_sprite(soot_sprite, self.player_sprite)
+            self.sprites_list.append(soot_sprite)
+
+
+    # Level 3 is straight-up evil, so the sprites will avoid the player
+    # def level_3(self):
+    #     self.sprites_list.clear()
+
+    #     for i in range(30):
+    #         soot_sprite = RunawaySprite(
+    #             "./sprites/soot-sprite"
+    #         )
 
 
     #### OTHER FUNCTIONS
@@ -197,6 +260,9 @@ class GameView(arcade.View):
         self.main_text.draw()
         arcade.draw_text(f"Score: {self.score}", 10, 20, arcade.color.WHITE, font_size=20, font_name="Kenney Pixel Square")
 
+        self.main_text.draw()
+        arcade.draw_text(f"Level: {self.level}", 10, 50, arcade.color.WHITE, font_size=20, font_name="Kenney Pixel Square")
+
         for sprite in self.player_list:
             arcade.draw_sprite(sprite)
 
@@ -205,11 +271,22 @@ class GameView(arcade.View):
 
 
     def on_update(self, delta_time):
+        # Check to see if we paused the game while switching between levels/views
+        if self.is_paused:
+            self.pause_timer += delta_time
+
+            if self.pause_timer >= self.pause_duration:
+                self.is_paused = False
+                self.pause_timer = 0
+
+            return
+        
         self.player_list.update(delta_time)
 
-        # Call update on all sprites
-        for sprite in self.sprites_list:
-            sprite.custom_update(delta_time)
+        # Call update on all sprites based on regular or special sprite
+        if (self.level != 0):
+            for sprite in self.sprites_list:
+                sprite.custom_update(delta_time)
         self.sprites_list.update(delta_time)
 
         # Generate a list of all sprites that collided with the player.
@@ -221,7 +298,23 @@ class GameView(arcade.View):
             sprite.remove_from_sprite_lists()
             self.score += 1
 
-        if(self.score == 20):
+        # When level 0 is passed, set up next level
+        if(self.score == 20 and self.level == 0):
+            self.level += 1
+            self.is_paused = True
+            self.background_color = arcade.color.LIGHT_DEEP_PINK
+            self.main_text.text = f"Level {self.level}"
+            self.level_1()
+
+        if(self.score == 40 and self.level == 1):
+            self.level += 1
+            self.is_paused = True
+            self.background_color = arcade.color.DARK_PINK
+            self.main_text.text = f"Level {self.level}"
+            self.level_2()
+
+            
+        if(self.score == 60 and self.level == 2):
             view = GameEndView()
             self.window.show_view(view)
 
